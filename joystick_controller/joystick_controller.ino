@@ -1,4 +1,15 @@
-#define DEBUG_MODE 1
+/*******************************************************************************
+ * Includes
+ ******************************************************************************/
+
+#include "BluetoothSerial.h"
+
+
+/*******************************************************************************
+ * Data
+ ******************************************************************************/
+
+BluetoothSerial SerialBT;
 
 /*
  * Pin connections:
@@ -16,19 +27,15 @@ uint8_t pin_X   = 2;  /* D2 */
 uint8_t pin_Y   = 4;  /* D4 */
 uint8_t pin_btn = 16; /* RX2 */
 
-uint32_t V_X, V_Y, btn_pushed;
 
-void setup() {
-  #if DEBUG_MODE
-  Serial.begin(9600);
-  #endif
+/*******************************************************************************
+ * Macros
+ ******************************************************************************/
 
-  pinMode(pin_X, INPUT);
-  pinMode(pin_Y, INPUT);
-  pinMode(pin_btn, INPUT_PULLUP);
+#define DEBUG_MODE 1
 
-  V_X = V_Y = btn_pushed = 0;
-}
+#define BT_JOYSTICK_CLIENT_NAME "joystick0"
+#define BT_PYNQ_CLIENT_NAME     "pynq0"
 
 /* Left limits */
 #define L_X_MIN  0
@@ -78,33 +85,118 @@ void setup() {
 #define BR_Y_MIN  2048
 #define BR_Y_MAX  4095
 
-static char* map_to_direction(uint32_t x, uint32_t y) {
+
+/*******************************************************************************
+ * Functions
+ ******************************************************************************/
+
+static uint8_t map_to_direction
+(
+  uint32_t x,
+  uint32_t y
+)
+{
   if (L_X_MIN <= x && x <= L_X_MAX && L_Y_MIN <= y && y <= L_Y_MAX)
-    return "L";
+    return 1;
   else if (R_X_MIN <= x && x <= R_X_MAX && R_Y_MIN <= y && y <= R_Y_MAX)
-    return "R";
+    return 2;
   else if (F_X_MIN <= x && x <= F_X_MAX && F_Y_MIN <= y && y <= F_Y_MAX)
-    return "F";
+    return 3;
   else if (B_X_MIN <= x && x <= B_X_MAX && B_Y_MIN <= y && y <= B_Y_MAX)
-    return "B";
+    return 4;
   else if (FL_X_MIN <= x && x <= FL_X_MAX && FL_Y_MIN <= y && y <= FL_Y_MAX)
-    return "FL";
+    return 5;
   else if (FR_X_MIN <= x && x <= FR_X_MAX && FR_Y_MIN <= y && y <= FR_Y_MAX)
-    return "FR";
+    return 6;
   else if (BL_X_MIN <= x && x <= BL_X_MAX && BL_Y_MIN <= y && y <= BL_Y_MAX)
-    return "BL";
+    return 7;
   else if (BR_X_MIN <= x && x <= BR_X_MAX && BR_Y_MIN <= y && y <= BR_Y_MAX)
-    return "BR";
+    return 8;
   else
-    return "N";
+    return 0;
 }
 
-void loop() {
+static void btCallback
+(
+  esp_spp_cb_event_t  event,
+  esp_spp_cb_param_t *param
+)
+{
+  if (ESP_SPP_SRV_OPEN_EVT == event)
+  {
+    Serial.println("PYNQ client connected!");
+  } 
+  else if (ESP_SPP_CLOSE_EVT == event)
+  {
+    Serial.println("PYNQ client disconnected!");
+  }
+}
+
+void setup
+(
+  void
+)
+{
+  #if DEBUG_MODE
+  Serial.begin(115200);
+  while (!Serial);
+
+  for (int i = 0; i < 50; i++)
+  {
+    Serial.println();
+  }
+
+  Serial.print("Initializing BT with name: ");
+  Serial.println(BT_JOYSTICK_CLIENT_NAME);
+  #endif
+
+  /* Setup joystick pins */
+  pinMode(pin_X, INPUT);
+  pinMode(pin_Y, INPUT);
+  pinMode(pin_btn, INPUT_PULLUP);
+
+  /*
+   * Setup BT with joystick being the slave (second parameter) and disable BLE
+   * (third parameter).
+   */
+  if (!SerialBT.begin(BT_JOYSTICK_CLIENT_NAME))
+  {
+    /* Fatal error/exit if BT setup failed */
+    #if DEBUG_MODE
+    Serial.println("BT failed to initialize");
+    #endif
+    exit(1);
+  }
+
+  #if DEBUG_MODE
+  Serial.print("Successfully initialized BT with name: ");
+  Serial.println(BT_JOYSTICK_CLIENT_NAME);
+  Serial.println(SerialBT.getBtAddressString());
+  #endif
+}
+
+void loop
+(
+  void
+)
+{
+  uint8_t  cmd;
+  uint32_t V_X, V_Y, btn_pushed;
+
+  /* Wait till the PYNQ client connects */
+  while (!SerialBT.connected())
+  {
+    delay(5);
+    Serial.println("Waiting for PYNQ client to connect");
+  }
+
+  /* Read the joystick input */
   V_X = analogRead(pin_X);
   V_Y = analogRead(pin_Y);
   btn_pushed = 1 - digitalRead(pin_btn);
+  cmd = map_to_direction(V_X, V_Y);
 
-  #ifdef DEBUG_MODE
+  #if DEBUG_MODE
   // X: XXX | Y: YYY | Direction: X | Button: 0/1
   Serial.print("X: ");
   Serial.print(V_X);
@@ -113,11 +205,14 @@ void loop() {
   Serial.print(V_Y);
   Serial.print(" | ");
   Serial.print("Direction: ");
-  Serial.print(map_to_direction(V_X, V_Y));
+  Serial.print(cmd);
   Serial.print(" | ");
   Serial.print("Button: ");
   Serial.println(btn_pushed);
   #endif
+
+  /* Send it over via BT */
+  SerialBT.write(cmd);
 
   delay(100);
 }
