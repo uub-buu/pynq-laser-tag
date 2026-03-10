@@ -90,6 +90,17 @@ uint8_t pin_btn = 16; /* RX2 */
  * Functions
  ******************************************************************************/
 
+/*
+ * Left           - 1
+ * Right          - 2
+ * Forward        - 3
+ * Backward       - 4
+ * Forward left   - 5
+ * Forward right  - 6
+ * Backward left  - 7
+ * Backward right - 8
+ * Neutral        - 0
+ */
 static uint8_t map_to_direction
 (
   uint32_t x,
@@ -114,22 +125,6 @@ static uint8_t map_to_direction
     return 8;
   else
     return 0;
-}
-
-static void btCallback
-(
-  esp_spp_cb_event_t  event,
-  esp_spp_cb_param_t *param
-)
-{
-  if (ESP_SPP_SRV_OPEN_EVT == event)
-  {
-    Serial.println("PYNQ client connected!");
-  } 
-  else if (ESP_SPP_CLOSE_EVT == event)
-  {
-    Serial.println("PYNQ client disconnected!");
-  }
 }
 
 void setup
@@ -183,7 +178,7 @@ void loop
   uint8_t  cmd;
   uint32_t V_X, V_Y, btn_pushed;
 
-  /* Wait till the PYNQ client connects */
+  /* Wait till the PYNQ BT receiver connects */
   while (!SerialBT.connected())
   {
     delay(5);
@@ -212,6 +207,16 @@ void loop
   #endif
 
   /* Send it over via BT */
+  /*
+   * Format of the data (byte) sent over:
+   * Bit  7   - Button push state
+   * Bits 3:0 - Direction data (0 - 8), see map_to_direction
+   */
+  cmd = ((uint8_t)(btn_pushed << 7) | cmd);
+  #ifdef DEBUG_MODE
+  Serial.print("Command byte sent over: 0x");
+  Serial.println(cmd, HEX);
+  #endif
   SerialBT.write(cmd);
 
   delay(100);
