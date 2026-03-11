@@ -51,9 +51,9 @@ spi_slave_interface_config_t slvcfg =
 
 #define DEBUG_MODE 1
 
-#define BT_JOYSTICK_CLIENT_NAME "joystick0"
-#define BT_JOYSTICK_CLIENT_ADDR "2C:BC:BB:4B:E5:02"
-#define BT_PYNQ_CLIENT_NAME     "pynq0"
+#define BT_JOYSTICK_CLIENT_NAME "joystick1"
+#define BT_JOYSTICK_CLIENT_ADDR "34:5F:45:A9:B5:2A" 
+#define BT_PYNQ_CLIENT_NAME     "pynq1"
 
 
 /*******************************************************************************
@@ -89,7 +89,7 @@ esp_err_t spi_send_data
    * Indefinite block does not work for us since a single transfer failure for
    * any reason is not catastrophic.
    */
-  return spi_slave_transmit(SLAVE_HOST, &t, pdMS_TO_TICKS(1));
+  return spi_slave_transmit(SLAVE_HOST, &t, pdMS_TO_TICKS(10));
 }
 
 void setup
@@ -185,14 +185,14 @@ void loop
      * Sanity check if command byte received from the joystick is in the
      * expected range.
      */
-    if (cmd > 8)
+    if (cmd > 255)
     {
       /* This restarts the loop() - single byte failure is not catastrophic */
       return;
     }
 
     /* Send the command (single byte) over SPI to PYNQ board */
-    ret = spi_send_data(cmd);
+    ret = spi_send_data((uint8_t)cmd);
     if (ret != ESP_OK)
     {
       /*

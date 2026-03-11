@@ -34,8 +34,8 @@ uint8_t pin_btn = 16; /* RX2 */
 
 #define DEBUG_MODE 1
 
-#define BT_JOYSTICK_CLIENT_NAME "joystick0"
-#define BT_PYNQ_CLIENT_NAME     "pynq0"
+#define BT_JOYSTICK_CLIENT_NAME "joystick1"
+#define BT_PYNQ_CLIENT_NAME     "pynq1"
 
 /* Left limits */
 #define L_X_MIN  0
@@ -167,6 +167,7 @@ void setup
   Serial.print("Successfully initialized BT with name: ");
   Serial.println(BT_JOYSTICK_CLIENT_NAME);
   Serial.println(SerialBT.getBtAddressString());
+  delay(1000);
   #endif
 }
 
