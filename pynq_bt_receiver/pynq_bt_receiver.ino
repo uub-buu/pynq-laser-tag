@@ -5,7 +5,6 @@
 #include "BluetoothSerial.h"
 #include "driver/spi_slave.h"
 #include "driver/gpio.h"
-//#include "esp_heap_caps.h"
 
 
 /*******************************************************************************
@@ -16,8 +15,8 @@ BluetoothSerial SerialBT;
 
 /* Pin mapping for ESP-WROOM-32 */
 static constexpr gpio_num_t PIN_SCLK = GPIO_NUM_18;
-static constexpr gpio_num_t PIN_MOSI = GPIO_NUM_23;
 static constexpr gpio_num_t PIN_MISO = GPIO_NUM_19;
+static constexpr gpio_num_t PIN_MOSI = GPIO_NUM_23;
 static constexpr gpio_num_t PIN_CS = GPIO_NUM_5;
 
 static constexpr spi_host_device_t SLAVE_HOST = VSPI_HOST;
@@ -55,6 +54,8 @@ spi_slave_interface_config_t slvcfg =
 #define BT_JOYSTICK_CLIENT_ADDR "2C:BC:BB:4B:E5:02"
 #define BT_PYNQ_CLIENT_NAME     "pynq0"
 
+#define SPI_TIMEOUT_MSEC        10
+
 
 /*******************************************************************************
  * Functions
@@ -89,7 +90,7 @@ esp_err_t spi_send_data
    * Indefinite block does not work for us since a single transfer failure for
    * any reason is not catastrophic.
    */
-  return spi_slave_transmit(SLAVE_HOST, &t, pdMS_TO_TICKS(1));
+  return spi_slave_transmit(SLAVE_HOST, &t, pdMS_TO_TICKS(SPI_TIMEOUT_MSEC));
 }
 
 void setup
@@ -181,16 +182,6 @@ void loop
     Serial.println(cmd);
 #endif
 
-    /*
-     * Sanity check if command byte received from the joystick is in the
-     * expected range.
-     */
-    if (cmd > 8)
-    {
-      /* This restarts the loop() - single byte failure is not catastrophic */
-      return;
-    }
-
     /* Send the command (single byte) over SPI to PYNQ board */
     ret = spi_send_data(cmd);
     if (ret != ESP_OK)
@@ -206,5 +197,5 @@ void loop
     }
   }
 
-  delay(50);
+  delay(5);
 }
