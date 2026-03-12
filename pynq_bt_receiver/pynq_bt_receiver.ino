@@ -222,8 +222,8 @@ void bt_task
       /* Read the command over BT */
       bt_data = SerialBT.read();
       #if DEBUG_MODE
-      Serial.print("Data from joystick: ");
-      Serial.println(bt_data);
+      Serial.print("Data received from joystick over BT: ");
+      Serial.println(bt_data, HEX);
       #endif
 
       /*

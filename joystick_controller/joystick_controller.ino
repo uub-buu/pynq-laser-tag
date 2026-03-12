@@ -282,7 +282,7 @@ void bt_task
     joystick_data = ENCODE_JOYSTICK_DATA(dpad_dir, btn_pushed);
 
     #ifdef DEBUG_MODE
-    Serial.print("Data sent over BT: 0x");
+    Serial.print("Data sent to PYNQ BT receiver over BT: 0x");
     Serial.println(joystick_data, HEX);
     #endif
 
