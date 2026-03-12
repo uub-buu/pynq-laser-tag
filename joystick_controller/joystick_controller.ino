@@ -23,6 +23,8 @@ BluetoothSerial SerialBT;
  * Orient the joystick such that the pins are on the left edge.
 */
 
+int     player_num;
+
 uint8_t pin_X   = 2;  /* D2 */
 uint8_t pin_Y   = 4;  /* D4 */
 uint8_t pin_btn = 16; /* RX2 */
@@ -187,7 +189,6 @@ void bt_init
   void
 )
 {
-  int  player_num;
   bool bt_inited = false;
   bool bt_begin_done = false;
 
@@ -251,7 +252,8 @@ void bt_task
       vTaskDelay(pdMS_TO_TICKS(5));
 
       #if DEBUG_MODE
-      Serial.println("Waiting for PYNQ client to connect");
+      Serial.print("Waiting for PYNQ client to connect: ");
+      Serial.println(BT_PYNQ_CLIENT_NAME(player_num));
       #endif
     }
 
