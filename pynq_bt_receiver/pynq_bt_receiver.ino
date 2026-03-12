@@ -111,9 +111,9 @@ void bt_init
     while (!bt_begin_done)
     {
       /*
-      * Setup BT with PYNQ being the master (second parameter) and disable BLE
-      * (third parameter).
-      */
+       * Setup BT with PYNQ being the master (second parameter) and disable BLE
+       * (third parameter).
+       */
       bt_begin_done =
         SerialBT.begin(BT_PYNQ_CLIENT_NAME(player_num), true, true);
 

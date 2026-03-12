@@ -27,6 +27,15 @@ uint8_t pin_X   = 2;  /* D2 */
 uint8_t pin_Y   = 4;  /* D4 */
 uint8_t pin_btn = 16; /* RX2 */
 
+/*
+ * NOTE: The potentiometer data from the joystick is encoded into a single byte
+ *       direction command (with the MSB indicating button press). Change the
+ *       uint8_t if we shift to sending raw potentiometer data. This byte is
+ *       what is sent over BT.
+ */
+volatile uint8_t joystick_data = 0;
+volatile bool    joystick_data_available = false;
+
 
 /*******************************************************************************
  * Macros
@@ -34,8 +43,26 @@ uint8_t pin_btn = 16; /* RX2 */
 
 #define DEBUG_MODE 1
 
-#define BT_JOYSTICK_CLIENT_NAME "joystick1"
-#define BT_PYNQ_CLIENT_NAME     "pynq1"
+/* NOTE: Some WROOM board pins are special! D2 did not work for this. */
+#define PLAYER_NUM_PIN             23 /* D23 */
+
+#define BT_JOYSTICK_CLIENT_P0_ADDR "2C:BC:BB:4B:E5:02"
+#define BT_JOYSTICK_CLIENT_P1_ADDR "34:5F:45:A9:B5:2A"
+
+#define BT_PYNQ_CLIENT_P0_NAME     "pynq0"
+#define BT_JOYSTICK_CLIENT_P0_NAME "joystick0"
+
+#define BT_PYNQ_CLIENT_P1_NAME     "pynq1"
+#define BT_JOYSTICK_CLIENT_P1_NAME "joystick1"
+
+#define BT_JOYSTICK_CLIENT_ADDR(num) \
+          num == 0 ? BT_JOYSTICK_CLIENT_P0_ADDR : BT_JOYSTICK_CLIENT_P1_ADDR
+
+#define BT_PYNQ_CLIENT_NAME(num)     \
+          num == 0 ? BT_PYNQ_CLIENT_P0_NAME : BT_PYNQ_CLIENT_P1_NAME
+
+#define BT_JOYSTICK_CLIENT_NAME(num) \
+          num == 0 ? BT_JOYSTICK_CLIENT_P0_NAME : BT_JOYSTICK_CLIENT_P1_NAME
 
 /* Left limits */
 #define L_X_MIN  0
@@ -85,22 +112,30 @@ uint8_t pin_btn = 16; /* RX2 */
 #define BR_Y_MIN  2048
 #define BR_Y_MAX  4095
 
+/* DPAD direction */
+#define DPAD_NEUTRAL        0
+#define DPAD_LEFT           1
+#define DPAD_RIGHT          2
+#define DPAD_FORWARD        3
+#define DPAD_BACKWARD       4
+#define DPAD_FORWARD_LEFT   5
+#define DPAD_FORWARD_RIGHT  6
+#define DPAD_BACKWARD_LEFT  7
+#define DPAD_BACKWARD_RIGHT 8
+
+/*
+ * Format of the data (byte) sent over:
+ * Bit  7   - Button push state
+ * Bits 3:0 - Direction data (0 - 8), see map_to_direction
+ */
+#define ENCODE_JOYSTICK_DATA(dpad_dir, btn) \
+          ((uint8_t)((btn) << 7) | (dpad_dir))
+
 
 /*******************************************************************************
  * Functions
  ******************************************************************************/
 
-/*
- * Left           - 1
- * Right          - 2
- * Forward        - 3
- * Backward       - 4
- * Forward left   - 5
- * Forward right  - 6
- * Backward left  - 7
- * Backward right - 8
- * Neutral        - 0
- */
 static uint8_t map_to_direction
 (
   uint32_t x,
@@ -108,23 +143,151 @@ static uint8_t map_to_direction
 )
 {
   if (L_X_MIN <= x && x <= L_X_MAX && L_Y_MIN <= y && y <= L_Y_MAX)
-    return 1;
+    return DPAD_LEFT;
   else if (R_X_MIN <= x && x <= R_X_MAX && R_Y_MIN <= y && y <= R_Y_MAX)
-    return 2;
+    return DPAD_RIGHT;
   else if (F_X_MIN <= x && x <= F_X_MAX && F_Y_MIN <= y && y <= F_Y_MAX)
-    return 3;
+    return DPAD_FORWARD;
   else if (B_X_MIN <= x && x <= B_X_MAX && B_Y_MIN <= y && y <= B_Y_MAX)
-    return 4;
+    return DPAD_BACKWARD;
   else if (FL_X_MIN <= x && x <= FL_X_MAX && FL_Y_MIN <= y && y <= FL_Y_MAX)
-    return 5;
+    return DPAD_FORWARD_LEFT;
   else if (FR_X_MIN <= x && x <= FR_X_MAX && FR_Y_MIN <= y && y <= FR_Y_MAX)
-    return 6;
+    return DPAD_FORWARD_RIGHT;
   else if (BL_X_MIN <= x && x <= BL_X_MAX && BL_Y_MIN <= y && y <= BL_Y_MAX)
-    return 7;
+    return DPAD_BACKWARD_LEFT;
   else if (BR_X_MIN <= x && x <= BR_X_MAX && BR_Y_MIN <= y && y <= BR_Y_MAX)
-    return 8;
+    return DPAD_BACKWARD_RIGHT;
   else
-    return 0;
+    return DPAD_NEUTRAL;
+}
+
+/* Bluetooth callback to handle various BT serial port protocol events */
+void bt_cb
+(
+  esp_spp_cb_event_t  event,
+  esp_spp_cb_param_t *param
+)
+{
+  if (event == ESP_SPP_CLOSE_EVT)
+  {
+    /* Client disconnected - flush */
+    SerialBT.disconnect();
+    SerialBT.flush();
+
+    #if DEBUG_MODE
+    Serial.println("PYNQ BT client disconnected!");
+    #endif
+  }
+}
+
+/* Initialize BT - called within a task */
+void bt_init
+(
+  void
+)
+{
+  int  player_num;
+  bool bt_inited = false;
+  bool bt_begin_done = false;
+
+  while (!bt_inited)
+  {
+    /* Read the joystick/RC car number on the pin - will be 0 or 1 */
+    player_num = digitalRead(PLAYER_NUM_PIN);
+
+    #if DEBUG_MODE
+    Serial.print("Initializing BT with name: ");
+    Serial.println(BT_JOYSTICK_CLIENT_NAME(player_num));
+    #endif
+
+    /*
+      * Setup BT with joystick being the slave (second parameter) and disable
+      * BLE (third parameter).
+      */
+    bt_inited =
+      SerialBT.begin(BT_JOYSTICK_CLIENT_NAME(player_num), false, true);
+
+    if (!bt_inited)
+    {
+      #if DEBUG_MODE
+      Serial.println("BT failed to initialize, retrying");
+      #endif
+
+      SerialBT.end();
+      vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    else
+    {
+      #if DEBUG_MODE
+      Serial.print("Successfully initialized BT with name: ");
+      Serial.println(BT_JOYSTICK_CLIENT_NAME(player_num));
+      Serial.print("MAC address is: ");
+      Serial.println(SerialBT.getBtAddressString());
+      #endif
+
+      SerialBT.register_callback(bt_cb);
+    }
+  }
+}
+
+/* Task to send data to PYNQ BT receiver */
+void bt_task
+(
+  void* arg
+)
+{
+  uint8_t  dpad_dir;
+  uint32_t V_X, V_Y, btn_pushed;
+
+  /* Initialize BT when starting for the first time */
+  bt_init();
+
+  while (1)
+  {
+    /* Wait till the PYNQ BT receiver connects */
+    while (!SerialBT.connected())
+    {
+      vTaskDelay(pdMS_TO_TICKS(5));
+
+      #if DEBUG_MODE
+      Serial.println("Waiting for PYNQ client to connect");
+      #endif
+    }
+
+    /* Read the joystick input */
+    V_X = analogRead(pin_X);
+    V_Y = analogRead(pin_Y);
+    btn_pushed = 1 - digitalRead(pin_btn);
+    dpad_dir = map_to_direction(V_X, V_Y);
+
+    #if DEBUG_MODE
+    // X: XXX | Y: YYY | Direction: X | Button: 0/1
+    Serial.print("X: ");
+    Serial.print(V_X);
+    Serial.print(" | ");
+    Serial.print("Y: ");
+    Serial.print(V_Y);
+    Serial.print(" | ");
+    Serial.print("Direction: ");
+    Serial.print(dpad_dir);
+    Serial.print(" | ");
+    Serial.print("Button: ");
+    Serial.println(btn_pushed);
+    #endif
+
+    /* Update the global variable so that the BT task can send data */
+    joystick_data = ENCODE_JOYSTICK_DATA(dpad_dir, btn_pushed);
+
+    #ifdef DEBUG_MODE
+    Serial.print("Data sent over BT: 0x");
+    Serial.println(joystick_data, HEX);
+    #endif
+
+    SerialBT.write(joystick_data);
+
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
 }
 
 void setup
@@ -140,9 +303,6 @@ void setup
   {
     Serial.println();
   }
-
-  Serial.print("Initializing BT with name: ");
-  Serial.println(BT_JOYSTICK_CLIENT_NAME);
   #endif
 
   /* Setup joystick pins */
@@ -150,25 +310,15 @@ void setup
   pinMode(pin_Y, INPUT);
   pinMode(pin_btn, INPUT_PULLUP);
 
-  /*
-   * Setup BT with joystick being the slave (second parameter) and disable BLE
-   * (third parameter).
-   */
-  if (!SerialBT.begin(BT_JOYSTICK_CLIENT_NAME))
-  {
-    /* Fatal error/exit if BT setup failed */
-    #if DEBUG_MODE
-    Serial.println("BT failed to initialize");
-    #endif
-    exit(1);
-  }
+  /* Set up the pin to detect joystick/RC car number - 0 or 1 */
+  pinMode(PLAYER_NUM_PIN, INPUT);
 
-  #if DEBUG_MODE
-  Serial.print("Successfully initialized BT with name: ");
-  Serial.println(BT_JOYSTICK_CLIENT_NAME);
-  Serial.println(SerialBT.getBtAddressString());
-  delay(1000);
-  #endif
+  /*
+   * Start a BT task to connect to the joystick controller. When we try to do
+   * this in loop(), any failure leads to instability in BT connection - causing
+   * multiple reboots.
+   */
+  xTaskCreate(bt_task, "bt_task", 4096, NULL, 1, NULL);
 }
 
 void loop
@@ -176,49 +326,5 @@ void loop
   void
 )
 {
-  uint8_t  cmd;
-  uint32_t V_X, V_Y, btn_pushed;
-
-  /* Wait till the PYNQ BT receiver connects */
-  while (!SerialBT.connected())
-  {
-    delay(5);
-    Serial.println("Waiting for PYNQ client to connect");
-  }
-
-  /* Read the joystick input */
-  V_X = analogRead(pin_X);
-  V_Y = analogRead(pin_Y);
-  btn_pushed = 1 - digitalRead(pin_btn);
-  cmd = map_to_direction(V_X, V_Y);
-
-  #if DEBUG_MODE
-  // X: XXX | Y: YYY | Direction: X | Button: 0/1
-  Serial.print("X: ");
-  Serial.print(V_X);
-  Serial.print(" | ");
-  Serial.print("Y: ");
-  Serial.print(V_Y);
-  Serial.print(" | ");
-  Serial.print("Direction: ");
-  Serial.print(cmd);
-  Serial.print(" | ");
-  Serial.print("Button: ");
-  Serial.println(btn_pushed);
-  #endif
-
-  /* Send it over via BT */
-  /*
-   * Format of the data (byte) sent over:
-   * Bit  7   - Button push state
-   * Bits 3:0 - Direction data (0 - 8), see map_to_direction
-   */
-  cmd = ((uint8_t)(btn_pushed << 7) | cmd);
-  #ifdef DEBUG_MODE
-  Serial.print("Command byte sent over: 0x");
-  Serial.println(cmd, HEX);
-  #endif
-  SerialBT.write(cmd);
-
-  delay(100);
+  /* Nothing to do here */
 }
