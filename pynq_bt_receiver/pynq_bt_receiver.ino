@@ -96,11 +96,11 @@ void bt_init
   bool         bt_begin_done = false;
   unsigned int bt_connection_attempt = 1;
 
-  /* Read the player/RC car number on the pin - will be 0 or 1 */
-  player_num = digitalRead(PLAYER_NUM_PIN);
-
   while (!bt_inited)
   {
+    /* Read the player/RC car number on the pin - will be 0 or 1 */
+    player_num = digitalRead(PLAYER_NUM_PIN);
+
     bt_begin_done = false;
 
     #if DEBUG_MODE
