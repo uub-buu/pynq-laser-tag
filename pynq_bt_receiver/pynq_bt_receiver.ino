@@ -13,6 +13,8 @@
 
 #define DEBUG_MODE 1
 
+/* NOTE: Some WROOM board pins are special! D2 did not work for this. */
+#define PLAYER_NUM_PIN             34 /* D34 */
 
 #define BT_JOYSTICK_CLIENT_P0_ADDR "2C:BC:BB:4B:E5:02"
 #define BT_JOYSTICK_CLIENT_P1_ADDR "34:5F:45:A9:B5:2A"
@@ -34,9 +36,6 @@
           num == 0 ? BT_JOYSTICK_CLIENT_P0_NAME : BT_JOYSTICK_CLIENT_P1_NAME
 
 #define SPI_TIMEOUT_MSEC        10
-
-/* NOTE: Some WROOM board pins are special! D2 did not work for this. */
-#define PLAYER_NUM_PIN          4
 
 
 /*******************************************************************************

@@ -44,7 +44,7 @@ volatile bool    joystick_data_available = false;
 #define DEBUG_MODE 1
 
 /* NOTE: Some WROOM board pins are special! D2 did not work for this. */
-#define PLAYER_NUM_PIN             23 /* D23 */
+#define PLAYER_NUM_PIN             34 /* D34 */
 
 #define BT_JOYSTICK_CLIENT_P0_ADDR "2C:BC:BB:4B:E5:02"
 #define BT_JOYSTICK_CLIENT_P1_ADDR "34:5F:45:A9:B5:2A"
