@@ -2,7 +2,7 @@
 Description=PYNQ RC System startup app
 After=network.target
 
-[Service]   
+[Service]
 Type=simple
 User=xilinx
 WorkingDirectory=/home/xilinx/jupyter_notebooks/pynq-tag
