@@ -25,10 +25,10 @@ motor_dir_map = [
 ]
 
 # Constants to denote motor numbers connected to the shield
-MOTOR_FL = 1 # Front left - M1
-MOTOR_BL = 2 # Back left - M2
-MOTOR_BR = 3 # Back right - M3
-MOTOR_FR = 4 # Front right - M4
+MOTOR_FR = 1 # Front right - M1
+MOTOR_BR = 2 # Back right - M2
+MOTOR_FL = 3 # Front left - M3
+MOTOR_BL = 4 # Back left - M4
 
 # Constants that encode the joystick D-pad user input
 # This corresponds to map_to_direction() in joystick_controller.ino
