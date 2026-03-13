@@ -1,6 +1,3 @@
-from pynq.overlays.base import BaseOverlay
-from pynq.lib.pynqmicroblaze.rpc import MicroblazeRPC
-
 
 source_pmodb = r'''
 
