@@ -1,4 +1,5 @@
 source_arduino = r'''
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <xparameters.h>
@@ -316,7 +317,10 @@ int DCMotor_setSpeed
     pulse = speed * PWM_PERIOD_TICKS / 100;
 
     #if ENABLE_PWM
-    timer_pwm_stop(timer_handles[num].timer_dev);
+    // NOTE: Stopping and then restarting PWM with a new frequency
+    //       caused the motors to stop intermittently. Maybe because
+    //       PWM stop would signal the motor driver to "stop"?
+    // timer_pwm_stop(timer_handles[num].timer_dev);
     timer_pwm_generate(
         timer_handles[num].timer_dev, PWM_PERIOD_TICKS, pulse);
     #endif

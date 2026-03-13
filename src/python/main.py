@@ -5,7 +5,8 @@ from pynq.lib.pynqmicroblaze.rpc import MicroblazeRPC
 from pmoda import source_pmoda
 from pmodb import source_pmodb
 from pmod_arduino import source_arduino
-
+from rc_car import RC_Car
+from dc_motor import *
 
 
 
@@ -25,7 +26,7 @@ def run():
     mb_pmoda = MicroblazeRPC(base.iop_pmoda, source_pmoda)
     mb_pmodb = MicroblazeRPC(base.iop_pmodb, source_pmodb)
     # Game entry point
-    car = RC_Car(log_level = logging.INFO)
+    car = RC_Car(mb_pmoda, log_level = logging.INFO)
 
     car.start()
 
