@@ -9,7 +9,7 @@ Source code hierarchy:
     │   ├── joystick_controller.ino  
     │   └── pynq_bt_receiver.ino  
     └── pynq  
-        └── rc_car.ipynb  
+        └── rc_car.ipynb
   
 4 directories, 4 files  
 ```
