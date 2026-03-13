@@ -1,3 +1,5 @@
+import logging
+from dc_motor import *
 class RC_Car:
     def __init__(self, weapons = True, log_level = logging.INFO):
         # Logging

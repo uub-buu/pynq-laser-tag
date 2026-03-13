@@ -1,3 +1,4 @@
+import logging
 # Constants
 
 # GPIO direction constants (referenced from MicroBlaze gpio.h)
