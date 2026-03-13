@@ -1,4 +1,4 @@
-source_arduino = r'''
+source_arduino = r"""
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -333,5 +333,4 @@ int DCMotor_setSpeed
     
     return SUCCESS;
 }
-'''
-
+"""

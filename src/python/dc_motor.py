@@ -1,4 +1,5 @@
 import logging
+
 # Constants
 
 # GPIO direction constants (referenced from MicroBlaze gpio.h)
@@ -74,23 +75,15 @@ class DCMotor:
             self.logger.debug(
                 f"DCMotor_init for motor {motornum} successful")
 
-        #self.set_speed_event = threading.Event()
-        #self.set_speed_thread = threading.Thread(
-        #    target = self.set_speed_t,
-        #    args = ())
-
-        #self.set_speed_thread.start()
-
-    #def set_speed_t(self):
-    #    print(f"Set speed thread for motor {self.motornum} started")
-
     def run(self, direction):
+        self.logger.debug(
+            f"DCMotor_run called for motor {self.motornum}, direction {motor_dir_map[direction]}")
+        self.logger.debug(
+            f"Motor {self.motornum} current direction: {motor_dir_map[self.direction]}")
+
         # Short circuit if there's no change, save ourselves a
         # MicroBlaze RPC
         if (direction != self.direction):
-            self.logger.debug(
-                f"DCMotor_run called for motor {self.motornum}, direction {motor_dir_map[direction]}")
-
             err = self.mb_arduino.DCMotor_run(self.motornum, direction)
 
             if (err != 0):
@@ -101,13 +94,18 @@ class DCMotor:
                 self.logger.debug(
                     f"DCMotor_run for motor {self.motornum} successful")
 
+                # Update the direction in class member
+                self.direction = direction
+
     def set_speed(self, speed):
+        self.logger.debug(
+            f"DCMotor_setSpeed called for motor {self.motornum}, speed {speed}")
+        self.logger.debug(
+            f"Motor {self.motornum} current speed: {self.speed}")
+
         # Short circuit if there's no change, save ourselves a
         # MicroBlaze RPC
         if (speed != self.speed):
-            self.logger.debug(
-                f"DCMotor_setSpeed called for motor {self.motornum}, speed {speed}")
-
             err = self.mb_arduino.DCMotor_setSpeed(self.motornum, speed)
             if (err != 0):
                 self.logger.error(
@@ -117,3 +115,5 @@ class DCMotor:
                 self.logger.debug(
                     f"DCMotor_setSpeed for motor {self.motornum} successful")
 
+                # Update the speed in class member
+                self.speed = speed

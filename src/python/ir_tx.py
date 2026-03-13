@@ -1,18 +1,18 @@
 import time, threading
-class IR_Transmitter:
-    def __init__(self, pmodb, pmodb_lock, logger, weapons, pin = 7):
-        # IR transmitter "laser" is on PMODB and connected to
-        # pin 7
 
-        self.logger = logger
-        self.enable = weapons
-        self.mb_pmodb = pmodb
-        self.pmodb_lock = pmodb_lock
+class IR_Transmitter:
+    def __init__(self, parent_class, pin = 7):
+        # IR transmitter "laser" is on PMODB and connected to pin 7
+
+        self.parent_class = parent_class
+        self.logger = self.parent_class.logger
+        self.enable = self.parent_class.weapons
+
         if not self.enable:
             self.logger.info(f"Laser not initialized")
             return
 
-        err = self.mb_pmodb.init_pwm(pin)
+        err = self.parent_class.mb_pmodb.init_pwm(pin)
         if (err != 0):
             self.logger.error(
                 f"init_pwm failed for pin {pin}, err: {err}")
@@ -28,11 +28,11 @@ class IR_Transmitter:
         self.shoot_event = threading.Event()
         self.shoot_thread = threading.Thread(
             target = self.shoot_t,
-            args = (self.pmodB_lock, self.shoot_event))
+            args = (self.parent_class.pmodB_lock, self.shoot_event))
 
         self.shoot_thread.start()
 
-        self.logger.info(f"Initialized laser shoot thread")
+        self.logger.debug(f"Initialized laser shoot thread")
         self.logger.debug(f"Laser signal pin: {self.pwm_pin}")
         self.logger.debug(
             f"Laser pulse duration: {self.laser_pulse_duration_msec} milliseconds")
@@ -53,7 +53,7 @@ class IR_Transmitter:
 
         # Shoot a quarter second pulse "laser"
         lock.acquire()
-        err = self.mb_pmodb.start_pwm(
+        err = self.parent_class.mb_pmodb.start_pwm(
             self.pwm_pin,
             self.pwm_period_usec,
             self.pwm_duty_cycle)
@@ -69,7 +69,7 @@ class IR_Transmitter:
         time.sleep(self.laser_pulse_duration_msec / 1000)
 
         lock.acquire()
-        err = self.mb_pmodb.stop_pwm(self.pwm_pin)
+        err = self.parent_class.mb_pmodb.stop_pwm(self.pwm_pin)
         lock.release()
 
         if (err != 0):

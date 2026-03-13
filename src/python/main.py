@@ -1,57 +1,42 @@
-import os, time, threading, multiprocessing, logging
+import subprocess, multiprocessing, logging
 
 from pynq.overlays.base import BaseOverlay
 from pynq.lib.pynqmicroblaze.rpc import MicroblazeRPC
+
 from pmoda import source_pmoda
 from pmodb import source_pmodb
 from pmod_arduino import source_arduino
 from rc_car import RC_Car
-from dc_motor import *
 
+def game_p(mb_pmoda, mb_pmodb, mb_arduino):
+    car = RC_Car(mb_pmoda, mb_pmodb, mb_arduino, log_level = logging.DEBUG)
 
+    car.start()
+    car.wait_for_stop()
 
-# Build/load MicroBlaze to IOP PMODA, PMODB and ARDUINO
-
-# SPI helper functions
-def get_laser_state(data_byte):
-    return ((data_byte >> 7) & 1)
-
-def get_motor_cmd(data_byte):
-    return (data_byte & 0xF)
+    return
 
 # Main entry point
 def run():
     base = BaseOverlay("base.bit")
-    mb_arduino = MicroblazeRPC(base.iop_arduino, source_arduino)
     mb_pmoda = MicroblazeRPC(base.iop_pmoda, source_pmoda)
     mb_pmodb = MicroblazeRPC(base.iop_pmodb, source_pmodb)
-    # Game entry point
-    car = RC_Car(mb_pmoda, log_level = logging.INFO)
+    mb_arduino = MicroblazeRPC(base.iop_arduino, source_arduino)
 
-    car.start()
+    # Spawn a game process and bind it to CPU1
+    game_proc = multiprocessing.Process(
+        target=game_p, args=(mb_pmoda, mb_pmodb, mb_arduino))
 
-    # NOTE: Noticed some stale data in SPI sometimes where the
-    #       last command comes up at the very beginning. Ignore
-    #       this first read and always start from NEUTRAL.
-    prev_data = mb_pmoda.spi_read_data()
-    prev_dpad_dir = DPAD_NEUTRAL
-    car.move(DPAD_NEUTRAL)
+    game_proc.start()
 
-    while True:
-        data = mb_pmoda.spi_read_data()
-        laser = get_laser_state(data)
-        dpad_dir = get_motor_cmd(data)
+    subprocess.run(
+        f"taskset -p 0x2 {game_proc.pid}",
+        shell = True,
+        stdout = subprocess.DEVNULL,
+        stderr = subprocess.DEVNULL)
 
-        if dpad_dir >= DPAD_NEUTRAL and dpad_dir <= DPAD_BACKWARD_RIGHT:
-            if dpad_dir != prev_dpad_dir:
-                car.move(dpad_dir)
-                prev_dpad_dir = dpad_dir
-
-        if laser == 1:
-            car.fire_laser()
-
-        time.sleep(0.01)
+    # Wait for the game process to finish
+    game_proc.join()
 
 if __name__ == "__main__":
-    print(f"Booting application...")
     run()
