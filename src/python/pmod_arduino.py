@@ -1,3 +1,5 @@
+from pynq.overlays.base import BaseOverlay
+from pynq.lib.pynqmicroblaze.rpc import MicroblazeRPC
 
 source_arduino = r'''
 #include <stdint.h>
@@ -331,3 +333,5 @@ int DCMotor_setSpeed
     return SUCCESS;
 }
 '''
+
+mb_arduino = MicroblazeRPC(base.iop_arduino, source_arduino)

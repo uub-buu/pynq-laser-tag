@@ -1,3 +1,6 @@
+from pynq.overlays.base import BaseOverlay
+from pynq.lib.pynqmicroblaze.rpc import MicroblazeRPC
+
 source_pmoda = r'''
 
 #include <stdint.h>
@@ -95,3 +98,4 @@ int spi_deinit
     return SUCCESS;
 }
 '''
+
