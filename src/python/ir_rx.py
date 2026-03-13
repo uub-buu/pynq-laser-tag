@@ -1,13 +1,16 @@
+import time, threading, logging
+from dc_motor import *
 class IR_Receiver():
-    def __init__(self, parent_class, pin = 3):
+    def __init__(self, pmodb, parent_class, pin = 3):
         # IR receiver is on PMODB and connected to pin 3
         self.enable = parent_class.weapons
         self.logger = parent_class.logger
+        self.mb_pmodb = pmodb
         if not self.enable:
             self.logger.info(f"IR receiver not initialized")
             return
 
-        err = mb_pmodb.init_gpio(pin, GPIO_IN)
+        err = self.mb_pmod.init_gpio(pin, GPIO_IN)
         if (err != 0):
             self.logger.error(
                 f"init_gpio failed for pin {pin}, err: {err}")
@@ -32,11 +35,11 @@ class IR_Receiver():
             return
 
         lock.acquire()
-        prev_read = mb_pmodb.read_gpio(self.ir_pin)
+        prev_read = self.mb_pmod.read_gpio(self.ir_pin)
         lock.release()
         while True:
             lock.acquire()
-            curr_read = mb_pmodb.read_gpio(self.ir_pin)
+            curr_read = self.mb_pmod.read_gpio(self.ir_pin)
             lock.release()
             if curr_read == 0 and curr_read != prev_read:
                 self.logger.info("Hit!")

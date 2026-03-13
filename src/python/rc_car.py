@@ -1,12 +1,13 @@
-import logging
+import threading, logging
 from dc_motor import *
 class RC_Car:
-    def __init__(self, weapons = True, log_level = logging.INFO):
+    def __init__(self, pmoda, weapons = True, log_level = logging.INFO):
         # Logging
         self.logger = logging.getLogger("PYNQ-Tag")
         self.logger.setLevel(log_level)
         self.logfile_handler = logging.FileHandler(
             "PYNQ-Tag.log", mode="w")
+        self.mb_pmoda = pmoda
 
         self.logfile_handler.setFormatter(
             logging.Formatter(
@@ -57,7 +58,7 @@ class RC_Car:
 
     def start(self):
         # Joystick link
-        err = mb_pmoda.spi_init()
+        err = self.mb_pmoda.spi_init()
         if (err != 0):
             self.logger.error(f"spi_init failed, err: {err}")
             return
@@ -71,7 +72,7 @@ class RC_Car:
     def stop(self):
         self.logger.info(f"Stopping program...")
         self.logfile_handler.close()
-        mb_pmoda.spi_deinit()
+        self.mb_pmoda.spi_deinit()
         for motor in self.motors:
             motor.run(RELEASE)
 
