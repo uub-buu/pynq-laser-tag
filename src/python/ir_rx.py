@@ -1,11 +1,12 @@
 import time, threading, logging
 from dc_motor import *
 class IR_Receiver():
-    def __init__(self, pmodb, parent_class, pin = 3):
+    def __init__(self, pmodb,pmodb_lock, logger, weapons, pin = 3):
         # IR receiver is on PMODB and connected to pin 3
-        self.enable = parent_class.weapons
-        self.logger = parent_class.logger
+        self.enable = weapons
+        self.logger = logger
         self.mb_pmodb = pmodb
+        self,pmodb_lock
         if not self.enable:
             self.logger.info(f"IR receiver not initialized")
             return
@@ -23,7 +24,7 @@ class IR_Receiver():
         # Start a process which indicates a hit
         self.ir_rx_thread = threading.Thread(
             target = self.notify_hit_t,
-            args = (parent_class, parent_class.pmodB_lock, ))
+            args = (self, pmodb_lock, ))
 
         self.ir_rx_thread.start()
 

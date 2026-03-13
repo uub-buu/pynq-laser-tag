@@ -1,15 +1,18 @@
+import time, threading
 class IR_Transmitter:
-    def __init__(self, parent_class, pin = 7):
+    def __init__(self, pmodb, pmodb_lock, logger, weapons, pin = 7):
         # IR transmitter "laser" is on PMODB and connected to
         # pin 7
 
-        self.logger = parent_class.logger
-        self.enable = parent_class.weapons
+        self.logger = logger
+        self.enable = weapons
+        self.mb_pmodb = pmodb
+        self.pmodb_lock = pmodb_lock
         if not self.enable:
             self.logger.info(f"Laser not initialized")
             return
 
-        err = mb_pmodb.init_pwm(pin)
+        err = self.mb_pmodb.init_pwm(pin)
         if (err != 0):
             self.logger.error(
                 f"init_pwm failed for pin {pin}, err: {err}")
@@ -25,7 +28,7 @@ class IR_Transmitter:
         self.shoot_event = threading.Event()
         self.shoot_thread = threading.Thread(
             target = self.shoot_t,
-            args = (parent_class.pmodB_lock, self.shoot_event))
+            args = (self.pmodB_lock, self.shoot_event))
 
         self.shoot_thread.start()
 
@@ -50,7 +53,7 @@ class IR_Transmitter:
 
         # Shoot a quarter second pulse "laser"
         lock.acquire()
-        err = mb_pmodb.start_pwm(
+        err = self.mb_pmodb.start_pwm(
             self.pwm_pin,
             self.pwm_period_usec,
             self.pwm_duty_cycle)
@@ -66,7 +69,7 @@ class IR_Transmitter:
         time.sleep(self.laser_pulse_duration_msec / 1000)
 
         lock.acquire()
-        err = mb_pmodb.stop_pwm(self.pwm_pin)
+        err = self.mb_pmodb.stop_pwm(self.pwm_pin)
         lock.release()
 
         if (err != 0):
