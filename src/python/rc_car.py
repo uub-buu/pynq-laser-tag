@@ -17,7 +17,7 @@ class RC_Car:
         # Logging
         self.logger = logging.getLogger("PYNQ-Tag")
         self.logger.setLevel(log_level)
-        timestamp = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"PYNQ-Tag-{timestamp}.log"
         self.logfile_handler = logging.FileHandler(filename, mode="w")
 
@@ -34,10 +34,10 @@ class RC_Car:
         self.logger.debug(f"Initializing motors")
 
         # Duty cycle for the initial/default speed
-        self.init_speed = 40
+        self.init_speed = 75
 
         # Reduced speed for gradual turns (FL, FR, BL, BR)
-        self.turn_speed = 20
+        self.turn_speed = 30
 
         self.motor_fl = DCMotor(MOTOR_FL, self.init_speed, self.logger, self.mb_arduino)
         self.motor_fr = DCMotor(MOTOR_FR, self.init_speed, self.logger, self.mb_arduino)
