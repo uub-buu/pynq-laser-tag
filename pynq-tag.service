@@ -1,0 +1,41 @@
+[Unit]
+Description=WES237A Final Project - PYNQ Tag game
+
+# README:
+#   1. Save this as /etc/systemd/system/pynq-tag.service
+#   2. Run following commands as root:
+#        systemctl daemon-reload
+#        systemctl enable pynq-tag.service
+#        systemctl start pynq-tag.service
+#        systemctl status pynq-tag.service
+#        reboot now
+
+# TODO: What is the earliest we can start?
+#       For now, waiting till Jupyter service to ensure PYNQ is initialized
+#       as if we are working as we normally have been.
+After=jupyter.service
+Requires=jupyter.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/xilinx/jupyter_notebooks/pynq-tag
+
+# Force XRT and PYNQ paths directly into the service environment
+Environment="XILINX_XRT=/usr"
+Environment="LD_LIBRARY_PATH=/usr/lib:/usr/local/lib"
+Environment="PYTHONPATH=/usr/local/share/pynq-venv/lib/python3.10/site-packages"
+Environment="PATH=/usr/local/share/pynq-venv/bin:/usr/bin:/bin"
+Environment="BOARD=Pynq-Z2" 
+
+# Add the MicroBlaze toolchain path here:
+Environment="PATH=/opt/microblazeel-xilinx-elf/bin:/usr/local/share/pynq-venv/bin:/usr/local/bin:/usr/bin:/bin"
+
+# Use the full path to the virtual environment's python interpreter
+ExecStart=/usr/local/share/pynq-venv/bin/python3 /home/xilinx/jupyter_notebooks/pynq-tag/main.py
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+# TODO: Check if this could be basic.target like jupyter.sevice
+WantedBy=multi-user.target
