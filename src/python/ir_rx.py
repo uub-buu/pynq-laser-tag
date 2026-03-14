@@ -7,6 +7,11 @@ import time, threading
 GPIO_OUT = 0
 GPIO_IN  = 1
 
+# Constants
+
+GAME_MODE_SUDDEN_DEATH  = 0
+GAME_MODE_THREE_STRIKES = 1
+
 class IR_Receiver():
     def __init__(self, parent_class, pin = 3):
         # IR receiver is on PMODB and connected to pin 3
@@ -47,14 +52,20 @@ class IR_Receiver():
         self.lock.release()
 
         while True:
+            # Stop the thread if we lost
+            if self.parent_class.stop_event.is_set():
+                break
+
             self.lock.acquire()
             curr_read = self.parent_class.mb_pmodb.read_gpio(self.ir_pin)
             self.lock.release()
 
             if curr_read == 0 and curr_read != prev_read:
                 self.logger.info("Hit!")
-                self.parent_class.stop()
-                break
+                self.parent_class.process_hit()
+
+                # Stall the IR receiver thread for a bit to not get spammed!
+                time.sleep(0.5)
 
             prev_read = curr_read
             time.sleep(0.01)

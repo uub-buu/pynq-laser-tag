@@ -1,19 +1,30 @@
-import datetime, threading, logging
+import time, datetime, threading, logging
 
 from dc_motor import *
 from ir_rx import *
 from ir_tx import *
 from status_led import *
 
+# Constants
+
+GAME_MODE_SUDDEN_DEATH  = 0
+GAME_MODE_THREE_STRIKES = 1
+
 class RC_Car:
     def __init__(
-        self, mb_pmoda, mb_pmodb, mb_arduino,
+        self, mb_pmoda, mb_pmodb, mb_arduino, game_mode,
         weapons = True, status_led = True, log_level = logging.INFO):
 
         # MircoBlaze lib objects
         self.mb_pmoda = mb_pmoda
         self.mb_pmodb = mb_pmodb
         self.mb_arduino = mb_arduino
+
+        self.status_led_enabled = status_led
+
+        self.game_mode = game_mode
+        self.strike_count = 0
+        self.game_start_time = time.time()
 
         # Logging
         self.logger = logging.getLogger("PYNQ-Tag")
@@ -28,7 +39,7 @@ class RC_Car:
                 datefmt="%Y-%m-%d %H:%M:%S"))
         self.logger.addHandler(self.logfile_handler)
 
-        self.logger.info(f"Beginning program...")
+        self.logger.info(f"Beginning program in mode {self.game_mode}")
         self.logger.debug(f"Logging initialized")
 
         # Overall "kill"/stop/lost event
@@ -87,21 +98,19 @@ class RC_Car:
         # Status LED
         #     Green - All systems go for launch! Still in play/winner
         #     Red - Lost
-        self.status_led_enabled = status_led
-        if self.status_led_enabled:
+        if status_led:
             self.logger.debug(f"Initializing status LED")
         else:
             self.logger.debug(
                 f"Skipping status LED initialization")
 
         self.status_led = Status_LED(parent_class = self)
-        if self.status_led_enabled:
+        if status_led:
             self.logger.debug(f"Status LED initialized")
 
     def start(self):
-        if self.status_led_enabled:
-            # Set the status LED to green (ready)
-            self.status_led.set_color("green")
+        # Set the status LED to green (ready)
+        self.status_led.set_color("green")
 
         self.steer_thread.start()
 
@@ -145,6 +154,7 @@ class RC_Car:
         if self.weapons:
             self.ir_transmitter.shoot_event.set()
 
+    # This blocks the main game process
     def wait_for_stop(self):
         while True:
             try:
@@ -154,11 +164,10 @@ class RC_Car:
                     return
             except KeyboardInterrupt:
                 return
-        
-    def stop(self):
-        if self.status_led_enabled:
-            # Set the status LED to red (stop/lost)
-            self.status_led.set_color("red")
+
+    def _stop(self):
+        # Set the status LED to red (stop/lost)
+        self.status_led.set_color("red")
 
         # De-initialize SPI
         self.logger.debug(f"De-initializing SPI")
@@ -178,6 +187,21 @@ class RC_Car:
             self.stop_event.set()
         except:
             exit(1)
+
+    def process_hit(self):
+        # Update the strike count
+        self.strike_count = self.strike_count + 1
+        self.logger.debug(f"Strike count: {self.strike_count}")
+
+        if self.game_mode == GAME_MODE_SUDDEN_DEATH:            
+            self._stop()
+
+        elif self.game_mode == GAME_MODE_THREE_STRIKES:
+            if self.strike_count == 2:
+                self.status_led.set_color("yellow")
+
+            elif self.strike_count > 2:
+                self._stop()
 
     def steer(self, cmd):
         self.logger.debug(f"Received command: {dpad_dir_map[cmd]}")

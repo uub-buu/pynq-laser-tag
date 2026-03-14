@@ -1,4 +1,6 @@
-source_arduino = r"""
+# Derived from https://github.com/adafruit/Adafruit-Motor-Shield-library
+
+source_arduino = r'''
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -333,4 +335,4 @@ int DCMotor_setSpeed
     
     return SUCCESS;
 }
-"""
+'''

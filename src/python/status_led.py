@@ -14,8 +14,7 @@ class Status_LED():
         self.enable = self.parent_class.status_led_enabled
         self.logger = self.parent_class.logger
         self.lock = self.parent_class.pmodB_lock
-        self.red_pin = -1
-        self.green_pin = -1
+        self.inited = False
 
         if not self.enable:
             self.logger.info(f"Status LED not initialized")
@@ -27,7 +26,23 @@ class Status_LED():
         if self._init_pin(red_pin) == 0:
             self.red_pin = red_pin
 
+        self.inited = True
+
     def _init_pin(self, pin):
+        # PMODs only have 1 PWM - PMODB PWM is being used by IR
+        # transmitter
+
+        # self.lock.acquire()
+        # err = self.parent_class.mb_pmodb.init_pwm(pin)
+        # self.lock.release()
+
+        # if (err != 0):
+        #     self.logger.error(
+        #         f"init_pwm failed for pin {pin}, err: {err}")
+        # else:
+        #     self.logger.debug(
+        #         f"init_pwm successful for pin {pin}")
+
         self.lock.acquire()
         err = self.parent_class.mb_pmodb.init_gpio(pin, GPIO_OUT)
         self.lock.release()
@@ -54,32 +69,62 @@ class Status_LED():
 
         return 0
 
-    def set_color(self, color = "green"):
-        if color == "green" and self.green_pin != -1:
-            self.lock.acquire()
-            err = self.parent_class.mb_pmodb.write_gpio(self.green_pin, 1)
-            self.lock.release()
+    def _set_pin(self, pin, val):
+        # PMODs only have 1 PWM - PMODB PWM is being used by IR
+        # transmitter
 
-            if (err != 0):
-                self.logger.error(
-                    f"write_gpio failed for pin {self.green_pin}, err: {err}")
-            else:
-                self.logger.debug(
-                    f"write_gpio successful for pin {self.green_pin}")
+        # if duty_cycle != 0:
+        #     self.lock.acquire()
+        #     err = self.parent_class.mb_pmodb.start_pwm(pin, 500, duty_cycle)
+        #     self.lock.release()
 
-        elif color == "red" and self.red_pin != -1:
-            self.lock.acquire()
-            err = self.parent_class.mb_pmodb.write_gpio(self.red_pin, 1)
-            self.lock.release()
+        #     if (err != 0):
+        #         self.logger.error(
+        #             f"start_pwm failed for pin {pin}, err: {err}")
+        #     else:
+        #         self.logger.debug(
+        #             f"start_pwm successful for pin {pin}")
 
-            if (err != 0):
-                self.logger.error(
-                    f"write_gpio failed for pin {self.red_pin}, err: {err}")
-            else:
-                self.logger.debug(
-                    f"write_gpio successful for pin {self.red_pin}")
+        # else:
+        #     self.lock.acquire()
+        #     err = self.parent_class.mb_pmodb.stop_pwm(pin)
+        #     self.lock.release()
+
+        #     if (err != 0):
+        #         self.logger.error(
+        #             f"stop_pwm failed for pin {pin}, err: {err}")
+        #     else:
+        #         self.logger.debug(
+        #             f"stop_pwm successful for pin {pin}")
+
+        self.lock.acquire()
+        err = self.parent_class.mb_pmodb.write_gpio(pin, val)
+        self.lock.release()
+
+        if (err != 0):
+            self.logger.error(
+                f"write_gpio failed for pin {pin}, err: {err}")
+        else:
+            self.logger.debug(
+                f"write_gpio successful for pin {pin}")
+
+    def set_color(self, color):
+        if not self.inited:
+            return
+
+        if color == "green":
+            self._set_pin(self.green_pin, 1)
+            self._set_pin(self.red_pin, 0)
+
+        if color == "red":
+            self._set_pin(self.red_pin, 1)
+            self._set_pin(self.green_pin, 0)
+
+        elif color == "yellow":
+            self._set_pin(self.green_pin, 1)
+            self._set_pin(self.red_pin, 1)
 
         else:
             self.logger.error(
-                f"Unknown color passed to set_color: err: {color}")
+                f"Unknown color passed to set_color: {color}")
             
