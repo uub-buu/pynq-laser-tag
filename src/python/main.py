@@ -9,7 +9,7 @@ from pmod_arduino import source_arduino
 from rc_car import RC_Car
 
 def game_p(mb_pmoda, mb_pmodb, mb_arduino):
-    car = RC_Car(mb_pmoda, mb_pmodb, mb_arduino)
+    car = RC_Car(mb_pmoda, mb_pmodb, mb_arduino, log_level = logging.INFO)
 
     car.start()
     car.wait_for_stop()
@@ -19,6 +19,7 @@ def game_p(mb_pmoda, mb_pmodb, mb_arduino):
 # Main entry point
 def run():
     base = BaseOverlay("base.bit")
+
     mb_pmoda = MicroblazeRPC(base.iop_pmoda, source_pmoda)
     mb_pmodb = MicroblazeRPC(base.iop_pmodb, source_pmodb)
     mb_arduino = MicroblazeRPC(base.iop_arduino, source_arduino)

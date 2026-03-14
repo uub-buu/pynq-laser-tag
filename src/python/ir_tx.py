@@ -52,12 +52,15 @@ class IR_Transmitter:
             return
 
         # Shoot a quarter second pulse "laser"
+        # Acquire a lock to PMOD Microblaze - the RPC library is not capable
+        # of handling RPCs from multiple Python threads (IR_Receiver is
+        # using the same Microblaze)
         lock.acquire()
+
         err = self.parent_class.mb_pmodb.start_pwm(
             self.pwm_pin,
             self.pwm_period_usec,
             self.pwm_duty_cycle)
-        lock.release()
 
         if (err != 0):
             self.logger.error(
@@ -68,8 +71,8 @@ class IR_Transmitter:
 
         time.sleep(self.laser_pulse_duration_msec / 1000)
 
-        lock.acquire()
         err = self.parent_class.mb_pmodb.stop_pwm(self.pwm_pin)
+
         lock.release()
 
         if (err != 0):
