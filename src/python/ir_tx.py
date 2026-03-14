@@ -22,7 +22,7 @@ class IR_Transmitter:
                 f"init_pwm successful for pin {pin}")
 
         self.pwm_period_usec = 26 # 26 usec is about 38.4 KHz
-        self.pwm_duty_cycle = 50
+        self.pwm_duty_cycle = 70  # Increase for extra power
         self.pwm_pin = pin
         self.laser_pulse_duration_msec = 250 # 250 msec pulse
 
