@@ -3,11 +3,12 @@ import datetime, threading, logging
 from dc_motor import *
 from ir_rx import *
 from ir_tx import *
+from status_led import *
 
 class RC_Car:
     def __init__(
         self, mb_pmoda, mb_pmodb, mb_arduino,
-        weapons = True, log_level = logging.INFO):
+        weapons = True, status_led = True, log_level = logging.INFO):
 
         # MircoBlaze lib objects
         self.mb_pmoda = mb_pmoda
@@ -29,6 +30,10 @@ class RC_Car:
 
         self.logger.info(f"Beginning program...")
         self.logger.debug(f"Logging initialized")
+
+        # Overall "kill"/stop/lost event
+        self.stop_event = threading.Event()
+        self.stop_event.clear()
 
         # Motors
         self.logger.debug(f"Initializing motors")
@@ -61,8 +66,8 @@ class RC_Car:
         else:
             self.logger.debug(f"spi_init successful")
 
-        self.dpad_listener_thread = threading.Thread(
-            target = self.dpad_listener_t, args = ())
+        self.steer_thread = threading.Thread(
+            target = self.steer_t, args = ())
 
         # Weapons
         self.weapons = weapons
@@ -79,13 +84,30 @@ class RC_Car:
         if weapons:
             self.logger.debug(f"IR transmitter and receiver initialized")
 
+        # Status LED
+        #     Green - All systems go for launch! Still in play/winner
+        #     Red - Lost
+        self.status_led_enabled = status_led
+        if self.status_led_enabled:
+            self.logger.debug(f"Initializing status LED")
+        else:
+            self.logger.debug(
+                f"Skipping status LED initialization")
+
+        self.status_led = Status_LED(parent_class = self)
+        if self.status_led_enabled:
+            self.logger.debug(f"Status LED initialized")
+
     def start(self):
-        self.dpad_listener_thread.start()
+        if self.status_led_enabled:
+            # Set the status LED to green (ready)
+            self.status_led.set_color("green")
 
-        self.logger.debug(
-            f"Initialized listener thread for getting DPAD directions received over BT by ESP32")
+        self.steer_thread.start()
 
-    def dpad_listener_t(self):
+        self.logger.debug(f"Initialized steer_thread")
+
+    def steer_t(self):
         # SPI helper functions
         def get_laser_state(data_byte):
             return ((data_byte >> 7) & 1)
@@ -101,6 +123,10 @@ class RC_Car:
         self.steer(prev_dpad_dir)
 
         while True:
+            # Stop the thread if we lost
+            if self.stop_event.is_set():
+                break
+
             data = self.mb_pmoda.spi_read_data()
             laser = get_laser_state(data)
             dpad_dir = get_motor_cmd(data)
@@ -120,18 +146,21 @@ class RC_Car:
             self.ir_transmitter.shoot_event.set()
 
     def wait_for_stop(self):
-        self.stop_event = threading.Event()
-        self.stop_event.clear()
-
         while True:
             try:
                 if not self.stop_event.is_set():
                     continue
+                else:
+                    return
             except KeyboardInterrupt:
                 return
         
     def stop(self):
-        # De-initialize
+        if self.status_led_enabled:
+            # Set the status LED to red (stop/lost)
+            self.status_led.set_color("red")
+
+        # De-initialize SPI
         self.logger.debug(f"De-initializing SPI")
         self.mb_pmoda.spi_deinit()
 

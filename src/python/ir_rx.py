@@ -1,6 +1,11 @@
-import time, threading, logging
+import time, threading
 
-from dc_motor import *
+# Constants
+
+# GPIO direction constants (referenced from MicroBlaze gpio.h)
+# See https://github.com/Xilinx/PYNQ/blob/master/boards/sw_repo/pynqmb/src/gpio.h
+GPIO_OUT = 0
+GPIO_IN  = 1
 
 class IR_Receiver():
     def __init__(self, parent_class, pin = 3):
@@ -9,6 +14,7 @@ class IR_Receiver():
         self.parent_class = parent_class
         self.enable = self.parent_class.weapons
         self.logger = self.parent_class.logger
+        self.lock = self.parent_class.pmodB_lock
 
         if not self.enable:
             self.logger.info(f"IR receiver not initialized")
@@ -25,28 +31,30 @@ class IR_Receiver():
         self.ir_pin = pin
 
         # Start a process which indicates a hit
-        self.ir_rx_thread = threading.Thread(
-            target = self.notify_hit_t,
-            args = (parent_class, parent_class.pmodB_lock, ))
+        self.ir_rx_thread = threading.Thread(target = self.notify_hit_t, args = ())
 
         self.ir_rx_thread.start()
 
         self.logger.debug(f"Initialized IR Receiver thread")
         self.logger.debug(f"IR receiver signal pin: {self.ir_pin}")
 
-    def notify_hit_t(self, car, lock):
+    def notify_hit_t(self):
         if not self.enable:
             return
 
-        lock.acquire()
+        self.lock.acquire()
         prev_read = self.parent_class.mb_pmodb.read_gpio(self.ir_pin)
-        lock.release()
+        self.lock.release()
+
         while True:
-            lock.acquire()
+            self.lock.acquire()
             curr_read = self.parent_class.mb_pmodb.read_gpio(self.ir_pin)
-            lock.release()
+            self.lock.release()
+
             if curr_read == 0 and curr_read != prev_read:
                 self.logger.info("Hit!")
-                car.stop()
+                self.parent_class.stop()
+                break
+
             prev_read = curr_read
             time.sleep(0.01)

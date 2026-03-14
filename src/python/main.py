@@ -9,7 +9,10 @@ from pmod_arduino import source_arduino
 from rc_car import RC_Car
 
 def game_p(mb_pmoda, mb_pmodb, mb_arduino):
-    car = RC_Car(mb_pmoda, mb_pmodb, mb_arduino, log_level = logging.INFO)
+    car = RC_Car(
+        mb_pmoda, mb_pmodb, mb_arduino,
+        status_led = True,
+        log_level = logging.ERROR)
 
     car.start()
     car.wait_for_stop()

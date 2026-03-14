@@ -7,6 +7,7 @@ class IR_Transmitter:
         self.parent_class = parent_class
         self.logger = self.parent_class.logger
         self.enable = self.parent_class.weapons
+        self.lock = self.parent_class.pmodB_lock
 
         if not self.enable:
             self.logger.info(f"Laser not initialized")
@@ -26,9 +27,7 @@ class IR_Transmitter:
         self.laser_pulse_duration_msec = 250 # 250 msec pulse
 
         self.shoot_event = threading.Event()
-        self.shoot_thread = threading.Thread(
-            target = self.shoot_t,
-            args = (self.parent_class.pmodB_lock, self.shoot_event))
+        self.shoot_thread = threading.Thread(target = self.shoot_t, args = ())
 
         self.shoot_thread.start()
 
@@ -37,16 +36,20 @@ class IR_Transmitter:
         self.logger.debug(
             f"Laser pulse duration: {self.laser_pulse_duration_msec} milliseconds")
 
-    def shoot_t(self, lock, shoot_event):
+    def shoot_t(self):
         while True:
+            # Stop the thread if we lost
+            if self.parent_class.stop_event.is_set():
+                break
+
             # Wait until shoot_event is set
-            if not shoot_event.is_set():
+            if not self.shoot_event.is_set():
                 continue
 
-            self._shoot(lock)
-            shoot_event.clear()
+            self._shoot()
+            self.shoot_event.clear()
 
-    def _shoot(self, lock):
+    def _shoot(self):
         if not self.enable:
             self.logger.debug(f"Laser could not be shot - not initialized!")
             return
@@ -55,7 +58,7 @@ class IR_Transmitter:
         # Acquire a lock to PMOD Microblaze - the RPC library is not capable
         # of handling RPCs from multiple Python threads (IR_Receiver is
         # using the same Microblaze)
-        lock.acquire()
+        self.lock.acquire()
 
         err = self.parent_class.mb_pmodb.start_pwm(
             self.pwm_pin,
@@ -73,7 +76,7 @@ class IR_Transmitter:
 
         err = self.parent_class.mb_pmodb.stop_pwm(self.pwm_pin)
 
-        lock.release()
+        self.lock.release()
 
         if (err != 0):
             self.logger.error(
