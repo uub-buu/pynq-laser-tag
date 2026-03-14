@@ -116,7 +116,7 @@ class Status_LED():
             self._set_pin(self.green_pin, 1)
             self._set_pin(self.red_pin, 0)
 
-        if color == "red":
+        elif color == "red":
             self._set_pin(self.red_pin, 1)
             self._set_pin(self.green_pin, 0)
 
